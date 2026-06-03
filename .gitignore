@@ -1,0 +1,36 @@
+# Node dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Prisma generated client
+/generated/prisma
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Build output
+dist/
+build/
+coverage/
+
+# Misc
+*.log
+*.tmp
+*.temp
+*.swp
