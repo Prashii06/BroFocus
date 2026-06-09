@@ -1,0 +1,145 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Secured Supabase transaction connection string
+  directUrl = env("DIRECT_URL")   // Used for migrations running directly on Supabase
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// 1. Authentication & Profile Core
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String?        // Nullable if user authenticates via pure Google OAuth OAuth
+  name          String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  integrations  Integration[]
+  tasks         Task[]
+  meetings      Meeting[]
+  analytics     UserAnalytics?
+  achievements  EarnedAchievement[]
+  aiChats       AIChatSession[]
+  engagementLog EngagementLoopLog[]
+}
+
+/// 10. Workspace Integration Infrastructure
+model Integration {
+  id           String   @id @default(uuid())
+  userId       String
+  provider     String   // e.g., "google"
+  accessToken  String   @db.Text
+  refreshToken String?  @db.Text
+  tokenExpiry  DateTime?
+  status       String   @default("connected") // "connected", "disconnected"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
+
+/// 4. Task Management Ecosystem
+model Task {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  priority    String   // "high", "medium", "low"
+  status      String   // "pending", "in_progress", "completed" [cite: 22, 92]
+  dueDate     DateTime?
+  pointsValue Int      @default(10) // Gamified tally value returned on complete [cite: 24, 97]
+  source      String   @default("manual") // "manual", "gmail_inferred", "assistant" [cite: 6, 136]
+  sourceId    String?  // References external thread message ID if auto-extracted [cite: 70]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// 5. Advanced Meeting Orchestration & 3. Smart Planner
+model Meeting {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  startTime   DateTime
+  endTime     DateTime
+  source      String   @default("google_calendar") // [cite: 6, 73]
+  sourceId    String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// 9. Analytics Hub & Progress Telemetry
+model UserAnalytics {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  currentPoints    Int      @default(0)   // Controls the dashboard productivity bar [cite: 24, 168]
+  currentLevel     Int      @default(1)
+  streakDays       Int      @default(0)   // Tracks consistency streak values [cite: 174]
+  lastActiveDay    DateTime?
+  totalFocusHours  Float    @default(0.0) // Tracks continuous workspace session logs [cite: 20, 177]
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  title       String   @unique // e.g., "Deep Focus Guru" [cite: 171]
+  description String
+  pointsAward Int      @default(100)
+  iconUrl     String?
+
+  usersEarned EarnedAchievement[]
+}
+
+model EarnedAchievement {
+  id            String   @id @default(uuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now()) // [cite: 171]
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}
+
+/// 7. Assistant Dialogue & Context Logs
+model AIChatSession {
+  id        String    @id @default(uuid())
+  userId    String
+  createdAt DateTime  @default(now())
+  messages  AIMessage[]
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AIMessage {
+  id            String        @id @default(uuid())
+  sessionId     String
+  role          String        // "user", "model"
+  content       String        @db.Text
+  multimodalUrl String?       // Link to voice binary or trace screenshots if provided [cite: 44, 145]
+  createdAt     DateTime      @default(now())
+
+  session       AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+/// 6. Automated Engagement Loop Logging
+model EngagementLoopLog {
+  id         String   @id @default(uuid())
+  userId     String
+  loopType   String   // "morning_kickoff" or "evening_wrap" [cite: 118, 121]
+  sentStatus String   // "success", "failed"
+  executedAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
